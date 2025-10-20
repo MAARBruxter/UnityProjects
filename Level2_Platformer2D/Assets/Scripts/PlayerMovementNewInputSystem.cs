@@ -75,12 +75,17 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
-        Vector3 start = playerFeet.transform.position;
-        Vector3 end = start + Vector3.down * rayDistance;
+        if (playerFeet != null)
+        {
+            Vector3 start = playerFeet.transform.position;
 
-        Gizmos.DrawLine(start, end);
+            Vector3 end = start + Vector3.down * rayDistance;
 
-        Gizmos.DrawWireSphere(end, 0.05f);
+            Gizmos.DrawLine(start, end);
+
+            Gizmos.DrawWireSphere(end, 0.05f);
+        }
+        
     }
 
     /// <summary>
