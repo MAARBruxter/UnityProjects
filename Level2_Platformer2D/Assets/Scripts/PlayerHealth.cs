@@ -36,13 +36,14 @@ public class PlayerHealth : MonoBehaviour
     {
         if (canTakeDamage)
         {
+
+            Health--;
             if (Health <= 0)
             {
-                Debug.Log("Player Dead");
-                // Handle player death (e.g., reload scene, show game over screen, etc.)
+                LevelManager.Instance.GameOver();
+
             } else { 
                 // Reduce health
-                Health--;
                 Debug.Log("Player Health: " + Health);
             
 

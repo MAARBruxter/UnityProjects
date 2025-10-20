@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - LevelManager
+  - PowerUp
   layers:
   - Default
   - TransparentFX
