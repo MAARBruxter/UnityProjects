@@ -38,6 +38,10 @@ public class PlayerHealth : MonoBehaviour
         {
 
             Health--;
+
+            // Play damage sound
+            AudioManager.Instance?.PlayDamageSound();
+
             if (Health <= 0)
             {
                 LevelManager.Instance.GameOver();

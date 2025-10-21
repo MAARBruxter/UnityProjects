@@ -16,25 +16,20 @@ public class HUDController : MonoBehaviour
     private void Awake()
     {
         playerHealth = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerHealth>();
-
-        powerUpCount = powerUps.transform.childCount;
     }
 
     private void Start()
     {
         healthText.text = playerHealth.Health.ToString("00");
-        PowerUpsText.text = powerUpCount.ToString("00");
+        PowerUpsText.text = LevelManager.Instance.RemainingPowerUps.ToString("00");
     }
 
     private void Update()
     {
         powerUpCount = powerUps.transform.childCount;
 
-        if (powerUpCount == 0) {
-            Debug.Log("WIN");
-        }
-            healthText.text = playerHealth.Health.ToString("00");
-        PowerUpsText.text = powerUpCount.ToString("00");
+        healthText.text = playerHealth.Health.ToString("00");
+        PowerUpsText.text = LevelManager.Instance.RemainingPowerUps.ToString("00");
     }
 
 }

@@ -19,7 +19,11 @@ public class PlayerPoints : MonoBehaviour
     /// </summary>
     private void RegisterPowerUpPoints()
     {
-        //TODO Play power-up sound effect
+        //The ? operator checks if the Instance is not null before calling the method
+        AudioManager.Instance?.PlayPowerUpSound();
+
+        LevelManager.Instance.CurrentPlayerPowerUps++;
+        LevelManager.Instance.RemainingPowerUps--;
 
         //TODO Manage points GameManager, LevelManager.
 
