@@ -25,7 +25,8 @@ public class PlayerPoints : MonoBehaviour
         LevelManager.Instance.CurrentPlayerPowerUps++;
         LevelManager.Instance.RemainingPowerUps--;
 
-        //TODO Manage points GameManager, LevelManager.
+        //Manage points GameManager
+        GameManager.Instance.PlayerPoints += pointsPerPowerUp;
 
     }
 }
