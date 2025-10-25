@@ -4,20 +4,25 @@ using UnityEngine.InputSystem;
 
 public class EnemyController : MonoBehaviour
 {
-    // Components
-
+    [Header("Enemy Components")]
     private Transform groundDetection;
     private SpriteRenderer spriteRenderer;
 
     //Ground Check
+    [Tooltip("Layer mask for ground detection.")]
     public LayerMask layer;
 
     //Movement
     [Header("Enemy movement")]
     private Vector2 direction;
+
+    [Tooltip("Determines the speed of the enemy.")]
     [Range(0.5f, 2f)]
     [SerializeField] private float movespeed = 1f;
+
+    [Header("Player Components")]
     private PlayerMovementNewInputSystem playerMovement;
+    private PlayerHealth playerHealth;
 
     private void Awake()
     {
@@ -26,6 +31,7 @@ public class EnemyController : MonoBehaviour
         layer = LayerMask.GetMask("Ground");
         direction = Vector2.left;
         playerMovement = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerMovementNewInputSystem>();
+        playerHealth = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerHealth>();
     }
 
     private void Update()
@@ -68,7 +74,7 @@ public class EnemyController : MonoBehaviour
 
     private void OnTriggerStay2D(Collider2D collision)
     {
-        if (collision.CompareTag("Player"))
+        if (collision.CompareTag("Player") && playerHealth.CanTakeDamage)
         {
             collision.gameObject.GetComponent<PlayerHealth>().TakeDamage();
             playerMovement.ApplyKnockback(transform.position);
@@ -76,6 +82,11 @@ public class EnemyController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Initiates a vibration on the current gamepad for a short duration.
+    /// </summary>
+    /// <remarks>This coroutine checks if a gamepad is connected and, if so, vibrates it for 0.25 seconds. The
+    /// vibration is applied equally to both motors of the gamepad.</remarks>
     private IEnumerator VibrateGamePad()
     {
         if (Gamepad.current != null)

@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class ParallaxEffect : MonoBehaviour
 {
+    [Header("Parallax Settings")]
+    [Tooltip("Speed factor for the background parallax effect.")]
     [SerializeField] private float speedBackground;
 
     private Transform cameraTransform;

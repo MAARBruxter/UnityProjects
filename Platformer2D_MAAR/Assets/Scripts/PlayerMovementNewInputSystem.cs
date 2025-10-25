@@ -6,22 +6,36 @@ using System.Collections;
 public class PlayerMovementNewInputSystem : MonoBehaviour
 {
     [Header("Move Settings")]
+    [Tooltip("Base movement speed of the player.")]
     [Range(1, 10)]
     [SerializeField] private float baseMoveSpeed = 5f;
+
+    [Tooltip("Medium movement speed of the player.")]
     [Range(1, 10)]
     [SerializeField] private float mediumMoveSpeed = 8f;
+
+    [Tooltip("Maximum movement speed of the player.")]
     [Range(10, 20)]
     [SerializeField] private float maxMoveSpeed = 15f;
-    [SerializeField] private float accelerationTime = 2f; // tiempo en segundos para llegar a velocidad máxima
-    [SerializeField] private float decelerationRate = 3f; // qué tan rápido desacelera cuando suelta el botón
+
+    [Tooltip("Time taken to reach maximum speed.")]
+    [SerializeField] private float accelerationTime = 2f;
+
+    [Tooltip("Rate of deceleration when no input is given.")]
+    [SerializeField] private float decelerationRate = 3f;
+
+    // Variables for acceleration and skidding
     private float accelerationTimer = 0f;
     private float lastDirection = 0f;
-    private bool isSkidding = false; // Estado de derrape
-    private float skidVelocity = 0f;  // Velocidad durante el derrape
+    private bool isSkidding = false;
+    private float skidVelocity = 0f;
+
+    [Tooltip("Friction applied during skidding.")]
     [Range(1, 20)]
-    [SerializeField] private float skidFriction = 5f;  // Qué tan rápido se detiene el derrape
+    [SerializeField] private float skidFriction = 5f;  // How fast the skid slows down
 
     [Header("Jump Settings")]
+    [Tooltip("Jump force applied to the player.")]
     [Range(1, 10)]
     [SerializeField] private float jumpForce = 8f;
 
@@ -32,6 +46,7 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
 
     // Input Actions
     private InputSystem_Actions playerControls;
+    private PlayerHealth playerHealth;
 
     // Componentes
     private SpriteRenderer playerSprite;
@@ -46,8 +61,13 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
     private bool wasGrounded = true;
 
     [Header("KnockedBack Propierties")]
+    [Tooltip("Force applied to the player when knocked back.")]
     [SerializeField] private float knockbackForce = 8f;
+
+    [Tooltip("Upward force applied to the player when knocked back.")]
     [SerializeField] private float knockbackUpForce = 4f;
+
+    [Tooltip("Duration of the knockback effect.")]
     [SerializeField] private float knockbackDuration = 0.4f;
 
     private bool isKnockedBack = false;
@@ -56,6 +76,7 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
 
     private void Awake()
     {
+        playerHealth = GetComponent<PlayerHealth>();
         // Inicialización de componentes
         playerSprite = GetComponentInChildren<SpriteRenderer>();
         rb = GetComponent<Rigidbody2D>();
@@ -68,8 +89,21 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
         playerControls.Enable();
     }
 
-    private void OnEnable() => playerControls.Enable();
-    private void OnDisable() => playerControls.Disable();
+    /// <summary>
+    /// Enables the player controls.
+    /// </summary>
+    private void OnEnable()
+    {
+        playerControls.Enable();
+    }
+
+    /// <summary>
+    /// Disables the player controls when the object is disabled.
+    /// </summary>
+    private void OnDisable()
+    {
+        playerControls.Disable();
+    }
 
     private void Update()
     {
@@ -86,22 +120,18 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Lee los valores de input del jugador
+    /// Reads player inputs from the new Input System
     /// </summary>
     private void GetInputs()
     {
         movementInput = playerControls.Player.Move.ReadValue<Vector2>();
         jumpInput = playerControls.Player.Jump.triggered;
-        attackInput = playerControls.Player.Attack.triggered;
-
-        // Vibración del gamepad al atacar
-        if (attackInput && Gamepad.current != null)
-            StartCoroutine(VibrateGamepad());
     }
 
     /// <summary>
-    /// Mueve al jugador horizontalmente con aceleración progresiva
+    /// Moves the player based on input, handling acceleration, skidding, and inertia.
     /// </summary>
+    /// <remarks> Handles acceleration when moving, skidding when changing direction, and inertia when no input is given.</remarks>
     private void MovePlayer()
     {
 
@@ -112,10 +142,10 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
         // --- ACELERACIÓN ---
         if (Mathf.Abs(inputX) > 0.1f)
         {
-            // Guarda la última dirección usada
+            // Saves the last direction of movement
             lastDirection = Mathf.Sign(inputX);
 
-            // Reinicia aceleración si cambia de dirección
+            // Reload skid if changing direction
             if (Mathf.Sign(inputX) != Mathf.Sign(rb.linearVelocity.x) && Mathf.Abs(rb.linearVelocity.x) > 0.1f)
             {
                 isSkidding = true;
@@ -124,57 +154,57 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
                 {
                     DustParticles.SetActive(true);
                 }
-                skidVelocity = rb.linearVelocity.x; // Guarda la velocidad actual para el derrape
+                skidVelocity = rb.linearVelocity.x; // Saves current velocity for skid effect
             }
 
 
-            // Aumenta la aceleración
+            // Increases the speed gradually
             AccelerationTimer += Time.fixedDeltaTime;
         }
         else
         {
-            // Sin input → desacelera gradualmente
+            // If no input is given, decrease speed gradually
             AccelerationTimer -= Time.fixedDeltaTime * decelerationRate;
         }
 
-        // Mantén el timer entre 0 y accelerationTime
+        // It keeps the timer between 0 and the max acceleration time
         AccelerationTimer = Mathf.Clamp(AccelerationTimer, 0f, accelerationTime);
 
-        // Calcula velocidad actual
+        // Calculates current speed based on acceleration timer
         float t = AccelerationTimer / accelerationTime;
         float currentSpeed = Mathf.Lerp(baseMoveSpeed, maxMoveSpeed, t);
 
 
-        // --- DERRAPE ---
+        // --- SKIDDING ---
         if (isSkidding)
         {
-            //Si salta, las partículas se desactivan
+            //If the player is jumping, stop dust particles
             if (animator.GetBool("IsJumping"))
             {
                 DustParticles.SetActive(false);
             }
 
-            // Reduce la velocidad de derrape poco a poco
+            // Reduces skid velocity over time
 
-            skidVelocity = Mathf.MoveTowards(skidVelocity, 0f, skidFriction * Time.fixedDeltaTime); //Nos lleva la velocidad acumulada a 0, en el tiempo definido por skidFriction
+            skidVelocity = Mathf.MoveTowards(skidVelocity, 0f, skidFriction * Time.fixedDeltaTime); //Runs the current skid velocity towards 0
             rb.linearVelocity = new Vector2(skidVelocity, rb.linearVelocity.y);
 
-            // Cuando la velocidad llega a 0, termina el derrape
+            // When skid velocity is near 0, stop skidding
             if (Mathf.Abs(skidVelocity) < 0.01f)
             {
                 isSkidding = false;
                 animator.SetBool("IsSkidding", false);
                 DustParticles.SetActive(false);
-                AccelerationTimer = 0f; // Reinicia aceleración para permitir nuevo movimiento
+                AccelerationTimer = 0f; // Restarts acceleration timer after skid
             }
 
-            // Salimos del método aquí para evitar que el jugador pueda mover mientras derrapa
+            // We exit the function to avoid other movement calculations.
             return;
         }
 
 
-        // --- MOVIMIENTO CON INERCIA ---
-        // Si el jugador no presiona, sigue avanzando en la última dirección
+        // --- INERTIA ---
+        // If the player is not giving input, we maintain movement based on last direction and current speed
         if (Mathf.Abs(inputX) > 0.1f)
         {
             rb.linearVelocity = new Vector2(inputX * currentSpeed, rb.linearVelocity.y);
@@ -185,12 +215,12 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
         }
         else
         {
-            // Cuando el timer llega a 0, se detiene del todo
+            // If the timer reaches 0, we stop horizontal movement
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
         }
 
 
-        // --- ANIMACIÓN ---
+        // --- ANIMATION ---
         animator.SetFloat("Speed", Mathf.Abs(rb.linearVelocity.x));
 
         if (currentSpeed < mediumMoveSpeed)
@@ -212,24 +242,33 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// If the player is hit, applies a knockback effect away from the hit source.
+    /// </summary>
+    /// <param name="hitSourcePosition"></param>
     public void ApplyKnockback(Vector2 hitSourcePosition)
     {
-        if (isKnockedBack) return; // Evita aplicar varias veces
+        if (isKnockedBack) return; // It avoids overlapping knockbacks
         isKnockedBack = true;
 
-        // Determina dirección opuesta al golpe
+        // Determines the direction of knockback
         float direction = Mathf.Sign(transform.position.x - hitSourcePosition.x);
 
-        // Limpia velocidad anterior
         rb.linearVelocity = Vector2.zero;
 
-        // Aplica impulso hacia atrás y un poco hacia arriba
+        // Applies knockback force
         rb.AddForce(new Vector2(direction * knockbackForce, knockbackUpForce), ForceMode2D.Impulse);
 
-        // Inicia recuperación
+        playerHealth.DropFruits(direction);
+
+        // Initiates recovery from knockback after a delay
         StartCoroutine(RecoverFromKnockback());
     }
 
+    /// <summary>
+    /// When the knockback duration ends, allows the player to move again.
+    /// </summary>
+    /// <returns></returns>
     private IEnumerator RecoverFromKnockback()
     {
         yield return new WaitForSeconds(knockbackDuration);
@@ -238,7 +277,7 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Voltea el sprite según la dirección del movimiento
+    /// Turns the player sprite based on movement direction
     /// </summary>
     private void FlipSprite()
     {
@@ -249,7 +288,7 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Verifica si el jugador está tocando el suelo
+    /// Verifies if the player is grounded using a raycast
     /// </summary>
     private bool IsGrounded()
     {
@@ -257,7 +296,7 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Calcula el vector de salto y controla las animaciones
+    /// Calculates jump logic based on input and grounded state.
     /// </summary>
     private void CalculateJump()
     {
@@ -268,7 +307,7 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
             animator.SetBool("IsJumping", true);
         }
 
-        // Detecta aterrizaje
+        // Detects landing
         bool grounded = IsGrounded();
         if (grounded && !wasGrounded)
             animator.SetBool("IsJumping", false);
@@ -277,7 +316,7 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Dibuja el rayo de detección de suelo
+    /// Draws gizmos for ground check raycast in the editor.
     /// </summary>
     private void OnDrawGizmos()
     {
@@ -288,18 +327,5 @@ public class PlayerMovementNewInputSystem : MonoBehaviour
         Vector3 end = start + Vector3.down * rayDistance;
         Gizmos.DrawLine(start, end);
         Gizmos.DrawSphere(end, 0.05f);
-    }
-
-    /// <summary>
-    /// Vibración breve del gamepad al atacar
-    /// </summary>
-    private IEnumerator VibrateGamepad()
-    {
-        if (Gamepad.current != null)
-        {
-            Gamepad.current.SetMotorSpeeds(0.5f, 0.5f);
-            yield return new WaitForSeconds(0.25f);
-            Gamepad.current.SetMotorSpeeds(0f, 0f);
-        }
     }
 }
